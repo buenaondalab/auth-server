@@ -1,6 +1,7 @@
 package com.buenaondalab.garden.auth_server;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +19,7 @@ import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlInput;
 import org.htmlunit.html.HtmlPage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,20 +39,22 @@ class AuthServerApplicationTests {
 	String username;
 	@Value("${spring.security.user.password}")
 	String password;
+	// @Value("${garden.oauth2.clients.0}")
+	String clientId = "gateway";
 
-	private static final String REDIRECT_URI = "http://localhost:8080/garden-ui/login/oauth2/code/garden-ui";
+	private final String redirectUri = "http://localhost:8080/"+clientId+"/login/oauth2/code/"+clientId;
 
-	private static final String AUTHORIZATION_REQUEST = UriComponentsBuilder
+	private final String authorizationRequest = UriComponentsBuilder
 			.fromPath("/oauth2/authorize")
 			.queryParam("response_type", "code")
-			.queryParam("client_id", "garden-ui")
+			.queryParam("client_id", clientId)
 			.queryParam("scope", "openid")
 			.queryParam("state", "some-state")
-			.queryParam("redirect_uri", REDIRECT_URI)
+			.queryParam("redirect_uri", redirectUri)
 			.toUriString();
 
-	private static final String CONSENTS_AUTH_REQUEST = UriComponentsBuilder
-			.fromUriString(AUTHORIZATION_REQUEST)
+	private final String consentsAuthRequest = UriComponentsBuilder
+			.fromUriString(authorizationRequest)
 			.replaceQueryParam("scope", "openid catalog.read catalog.write")
 			.toUriString();
 
@@ -92,7 +96,7 @@ class AuthServerApplicationTests {
 
 	@Test
 	public void whenNotLoggedInAndRequestingTokenThenRedirectsToLogin() throws IOException {
-		HtmlPage page = this.webClient.getPage(AUTHORIZATION_REQUEST);
+		HtmlPage page = this.webClient.getPage(authorizationRequest);
 
 		assertLoginPage(page);
 	}
@@ -105,19 +109,25 @@ class AuthServerApplicationTests {
 		signIn(this.webClient.getPage("/login"), username, password);
 
 		// Request token
-		WebResponse response = this.webClient.getPage(AUTHORIZATION_REQUEST).getWebResponse();
+		WebResponse response = this.webClient.getPage(authorizationRequest).getWebResponse();
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.MOVED_PERMANENTLY.value());
 		String location = response.getResponseHeaderValue("location");
-		assertThat(location).startsWith(REDIRECT_URI);
+		assertThat(location).startsWith(redirectUri);
 		assertThat(location).contains("code=");
+	}
+
+	@Test
+	@DisplayName("OpenID Provider Configuration Endpoint is available")
+	public void openIDconfig(){
+		assertDoesNotThrow(() -> this.webClient.getPage("/.well-known/openid-configuration"));
 	}
 
 	@Test
 	@WithMockUser("test")
 	public void whenUserConsentsToAllScopesThenReturnAuthorizationCode() throws IOException {
 		this.webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
-		final HtmlPage consentPage = this.webClient.getPage(CONSENTS_AUTH_REQUEST);
+		final HtmlPage consentPage = this.webClient.getPage(consentsAuthRequest);
 		assertThat(consentPage.getTitleText()).isEqualTo("Consent required");
 
 		List<HtmlCheckBoxInput> scopes = new ArrayList<>();
@@ -140,7 +150,7 @@ class AuthServerApplicationTests {
 		WebResponse approveConsentResponse = submitConsentButton.click().getWebResponse();
 		assertThat(approveConsentResponse.getStatusCode()).isEqualTo(HttpStatus.MOVED_PERMANENTLY.value());
 		String location = approveConsentResponse.getResponseHeaderValue("location");
-		assertThat(location).startsWith(REDIRECT_URI);
+		assertThat(location).startsWith(redirectUri);
 		assertThat(location).contains("code=");
 	}
 
@@ -148,7 +158,7 @@ class AuthServerApplicationTests {
 	@WithMockUser("test")
 	public void whenUserCancelsConsentThenReturnAccessDeniedError() throws IOException {
 		this.webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
-		final HtmlPage consentPage = this.webClient.getPage(CONSENTS_AUTH_REQUEST);
+		final HtmlPage consentPage = this.webClient.getPage(consentsAuthRequest);
 		assertThat(consentPage.getTitleText()).isEqualTo("Consent required");
 
 		DomElement cancelConsentButton = consentPage.querySelector("button[id='cancel-consent']");
@@ -157,7 +167,7 @@ class AuthServerApplicationTests {
 		WebResponse cancelConsentResponse = cancelConsentButton.click().getWebResponse();
 		assertThat(cancelConsentResponse.getStatusCode()).isEqualTo(HttpStatus.MOVED_PERMANENTLY.value());
 		String location = cancelConsentResponse.getResponseHeaderValue("location");
-		assertThat(location).startsWith(REDIRECT_URI);
+		assertThat(location).startsWith(redirectUri);
 		assertThat(location).contains("error=access_denied");
 	}
 
