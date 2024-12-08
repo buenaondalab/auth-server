@@ -38,7 +38,7 @@ public class SecurityConfig {
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .redirectUris(uris -> getUris(uris, dc, clientId)) //TODO check
-                .scopes(scopes -> scopes.addAll(Set.of(OidcScopes.OPENID, OidcScopes.PROFILE))) //TODO add scopes
+                .scopes(scopes -> scopes.addAll(Set.of(OidcScopes.OPENID, OidcScopes.PROFILE, "catalog.read", "catalog.write"))) //TODO add scopes
                 .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
                 .build();
         return new InMemoryRegisteredClientRepository(client);

@@ -42,7 +42,7 @@ class AuthServerApplicationTests {
 	// @Value("${garden.oauth2.clients.0}")
 	String clientId = "gateway";
 
-	private final String redirectUri = "http://localhost:8080/"+clientId+"/login/oauth2/code/"+clientId;
+	private final String redirectUri = "http://localhost:8080/login/oauth2/code/"+clientId;
 
 	private final String authorizationRequest = UriComponentsBuilder
 			.fromPath("/oauth2/authorize")
@@ -124,7 +124,7 @@ class AuthServerApplicationTests {
 	}
 
 	@Test
-	@WithMockUser("test")
+	@WithMockUser(username = "test", password = "password")
 	public void whenUserConsentsToAllScopesThenReturnAuthorizationCode() throws IOException {
 		this.webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
 		final HtmlPage consentPage = this.webClient.getPage(consentsAuthRequest);
@@ -155,7 +155,7 @@ class AuthServerApplicationTests {
 	}
 
 	@Test
-	@WithMockUser("test")
+	@WithMockUser(username = "test", password = "password")
 	public void whenUserCancelsConsentThenReturnAccessDeniedError() throws IOException {
 		this.webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
 		final HtmlPage consentPage = this.webClient.getPage(consentsAuthRequest);
